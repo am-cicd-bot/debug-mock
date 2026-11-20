@@ -1,0 +1,54 @@
+services:
+  core-ledger:
+    build:
+      context: ./services/core-ledger
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - CORE_LEDGER_DB=/data/core_ledger.db
+    volumes:
+      - core_ledger_data:/data
+
+  dispute-agent:
+    build:
+      context: .
+      dockerfile: services/dispute-agent/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - CORE_LEDGER_URL=http://core-ledger:8081
+      - POLICIES_DIR=/srv/policies
+      - DISPUTE_DB_PATH=/data/disputes.db
+      - LLM_PROVIDER=${LLM_PROVIDER:-auto}
+      - LLM_MODEL=${LLM_MODEL:-gemini-2.5-flash}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+    depends_on:
+      - core-ledger
+      - jaeger
+    volumes:
+      - dispute_agent_data:/data
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.58
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"
+      - "4318:4318"
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - dispute-agent
+      - core-ledger
+
+volumes:
+  core_ledger_data:
+  dispute_agent_data:

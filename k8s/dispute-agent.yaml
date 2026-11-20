@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dispute-agent
+  namespace: meridian-disputes
+  labels:
+    app: dispute-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dispute-agent
+  template:
+    metadata:
+      labels:
+        app: dispute-agent
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      automountServiceAccountToken: true
+      containers:
+        - name: dispute-agent
+          image: ghcr.io/meridian-bank/dispute-agent:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+            privileged: true
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: disputeops-config
+            - secretRef:
+                name: disputeops-secrets
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "150m"
+              memory: "384Mi"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 8
+            periodSeconds: 5
+            timeoutSeconds: 1
+            failureThreshold: 2
+          volumeMounts:
+            - name: dispute-storage
+              mountPath: /data
+      volumes:
+        - name: dispute-storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dispute-agent
+  namespace: meridian-disputes
+spec:
+  selector:
+    app: dispute-agent
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

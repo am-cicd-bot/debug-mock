@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-ledger
+  namespace: meridian-disputes
+  labels:
+    app: core-ledger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: core-ledger
+  template:
+    metadata:
+      labels:
+        app: core-ledger
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: core-ledger
+          image: ghcr.io/meridian-bank/core-ledger:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+              name: http
+          env:
+            - name: CORE_LEDGER_DB
+              value: "/data/core_ledger.db"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "192Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: ledger-storage
+              mountPath: /data
+      volumes:
+        - name: ledger-storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: core-ledger
+  namespace: meridian-disputes
+spec:
+  selector:
+    app: core-ledger
+  ports:
+    - name: http
+      port: 8081
+      targetPort: 8081

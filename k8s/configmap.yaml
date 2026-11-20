@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: disputeops-config
+  namespace: meridian-disputes
+data:
+  ENVIRONMENT: "gke-prod-us-central1"
+  CORE_LEDGER_URL: "http://core-ledger.meridian-disputes.svc.cluster.local:8081"
+  POLICIES_DIR: "/srv/policies"
+  LLM_PROVIDER: "auto"
+  LLM_MODEL: "gemini-2.5-flash"
+  LLM_TEMPERATURE: "1.15"
+  OTEL_SERVICE_NAME: "meridian-dispute-agent"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger-collector.meridian-disputes.svc.cluster.local:4318/v1/traces"

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Meridian Commercial Bank automated charge dispute intake, triage, and clearing workbench." />
+  <title>Meridian Commercial Bank — DisputeOps Workbench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-group">
+      <span class="brand-name">Meridian Commercial Bank</span>
+      <span class="brand-sub">DisputeOps Autonomous Triage &amp; Clearing</span>
+    </div>
+    <nav class="nav-tabs" aria-label="Primary Workspace Navigation">
+      <button class="nav-tab active" data-view="queue-view">Dispute Queue</button>
+      <button class="nav-tab" data-view="intake-view">Submit Dispute</button>
+      <button class="nav-tab" data-view="traces-view">OTel Spans</button>
+    </nav>
+    <div class="utility-links">
+      <a href="/metrics" target="_blank" rel="noopener">/metrics</a>
+      <a href="/docs" target="_blank" rel="noopener">OpenAPI</a>
+    </div>
+  </header>
+
+  <main class="shell">
+    <!-- VIEW 1: DISPUTE QUEUE & INSPECTOR -->
+    <section id="queue-view" class="view-panel active">
+      <div class="workbench-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h1 class="panel-title">Commercial Dispute Queue</h1>
+            <button id="refresh-queue-btn" class="btn btn-secondary">Refresh</button>
+          </div>
+          <div class="filter-bar">
+            <input id="search-input" type="text" placeholder="Search ticket, narrative, TXN..." aria-label="Search tickets" />
+            <select id="status-filter" style="width: 165px;" aria-label="Filter status">
+              <option value="">All Statuses</option>
+              <option value="QUEUED_FOR_TRIAGE">QUEUED_FOR_TRIAGE</option>
+              <option value="RESOLVED_CREDITED">RESOLVED_CREDITED</option>
+              <option value="ESCALATED_ANALYST">ESCALATED_ANALYST</option>
+              <option value="DENIED_TIME_BARRED">DENIED_TIME_BARRED</option>
+            </select>
+          </div>
+          <div id="ticket-list" class="ticket-list"></div>
+        </div>
+
+        <div class="panel" id="detail-panel">
+          <div class="panel-header">
+            <h2 class="panel-title" id="detail-title">Select a dispute ticket</h2>
+            <div style="display:flex; gap:8px;">
+              <button id="run-triage-btn" class="btn btn-primary" disabled>Run Automated Triage</button>
+            </div>
+          </div>
+          <div class="detail-body" id="detail-body">
+            <p style="color: var(--text-muted); margin: 0;">Choose a commercial dispute from the queue on the left to inspect its intake claim, agent tool trace, and downstream Core Ledger postings.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: NEW DISPUTE INTAKE -->
+    <section id="intake-view" class="view-panel">
+      <div class="panel form-container">
+        <div class="panel-header">
+          <h1 class="panel-title">Commercial Charge Dispute Intake</h1>
+        </div>
+        <div class="detail-body">
+          <form id="intake-form">
+            <div class="split-columns">
+              <div class="form-row">
+                <label for="intake-account">Commercial Account</label>
+                <select id="intake-account" required></select>
+              </div>
+              <div class="form-row">
+                <label for="intake-transaction">Statement Transaction</label>
+                <select id="intake-transaction" required></select>
+              </div>
+            </div>
+            <div class="split-columns">
+              <div class="form-row">
+                <label for="intake-email">Submitted By (Authorized Signer Email)</label>
+                <input id="intake-email" type="email" required value="treasury@apexlogistics.example" />
+              </div>
+              <div class="form-row">
+                <label for="intake-category">Dispute Category</label>
+                <select id="intake-category">
+                  <option value="UNAUTHORIZED_FRAUD">Unauthorized / Fraudulent Charge</option>
+                  <option value="DUPLICATE_CHARGE">Duplicate Processing</option>
+                  <option value="MERCHANT_DISPUTE">Cancelled Recurring / Goods Not Received</option>
+                  <option value="ACH_UNAUTHORIZED">Unauthorized Corporate ACH Debit</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="intake-narrative">Dispute Statement &amp; Context</label>
+              <textarea id="intake-narrative" rows="4" required placeholder="Describe why this transaction is disputed..."></textarea>
+            </div>
+            <div class="split-columns">
+              <div class="form-row">
+                <label for="intake-evidence">Supporting Evidence Reference (Optional)</label>
+                <input id="intake-evidence" type="text" placeholder="e.g. Affidavit ID, cancellation email date, invoice #" />
+              </div>
+              <div class="form-row">
+                <label for="intake-url">External Receipt / Invoice URL (Optional)</label>
+                <input id="intake-url" type="url" placeholder="https://..." />
+              </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; align-items:center; gap:12px; margin-top:8px;">
+              <span id="intake-status-msg" style="color:var(--text-secondary); font-size:13px;"></span>
+              <button type="submit" id="intake-submit-btn" class="btn btn-primary">Submit &amp; Auto-Triage</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: OPENTELEMETRY SPANS -->
+    <section id="traces-view" class="view-panel">
+      <div class="panel">
+        <div class="panel-header">
+          <h1 class="panel-title">Recent In-Process OpenTelemetry Spans</h1>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input id="trace-filter-input" type="text" placeholder="Filter by trace_id..." style="width:260px;" />
+            <button id="refresh-spans-btn" class="btn btn-secondary">Refresh Spans</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Trace ID</th>
+                <th>Span Name</th>
+                <th>Duration (ms)</th>
+                <th>Visual</th>
+                <th>Status</th>
+                <th>Key Attributes</th>
+              </tr>
+            </thead>
+            <tbody id="spans-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
